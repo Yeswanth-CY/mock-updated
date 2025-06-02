@@ -1,0 +1,43 @@
+import { createClient } from "@/lib/supabase/server"
+import { notFound } from "next/navigation"
+import { InterviewResults } from "@/components/interview/interview-results"
+
+interface ResultsPageProps {
+  params: {
+    id: string
+  }
+}
+
+export default async function ResultsPage({ params }: ResultsPageProps) {
+  const supabase = createClient()
+
+  // Fetch the interview without user check
+  const { data: interview } = await supabase.from("interviews").select("*").eq("id", params.id).single()
+
+  if (!interview) {
+    notFound()
+  }
+
+  // Fetch the questions with responses and feedback
+  const { data: questions } = await supabase
+    .from("questions")
+    .select(`
+      *,
+      responses:responses(
+        *,
+        feedback:feedback(*)
+      )
+    `)
+    .eq("interview_id", params.id)
+    .order("order_number", { ascending: true })
+
+  if (!questions || questions.length === 0) {
+    notFound()
+  }
+
+  return (
+    <div className="container max-w-4xl py-10">
+      <InterviewResults interview={interview} questions={questions} />
+    </div>
+  )
+}
